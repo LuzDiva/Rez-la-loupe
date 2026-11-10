@@ -10,7 +10,7 @@ Le site a deux espaces :
 | **Visiteurs** | `https://<votre-compte>.github.io/<nom-du-projet>/` | Le public : c'est le lien du QR code |
 | **Artiste** | `https://<votre-compte>.github.io/<nom-du-projet>/artiste/` | L'artiste : préparer et tester les œuvres |
 
-Démonstration : https://luzdiva.github.io/photo-augmentee/ (espace artiste : https://dianeandz.github.io/photo-augmentee/artiste/)
+Démonstration : https://luzdiva.github.io/photo-augmentee/ (espace artiste : https://luzdiva.github.io/photo-augmentee/artiste/)
 
 ---
 
