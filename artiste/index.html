@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Espace artiste</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/style.css">
+<style>
+  .works { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .work {
+    display: grid; grid-template-columns: 72px 1fr; gap: 12px; align-items: center;
+    padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
+  }
+  .work img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; display: block; }
+  .work .info { min-width: 0; display: grid; gap: 3px; }
+  .work .info strong { font-family: var(--font-display); font-weight: 400; font-size: 21px; line-height: 1.15; overflow-wrap: anywhere; }
+  .work .meta { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700;
+    color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    border-radius: 99px; padding: 1px 8px;
+  }
+  .work .actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+  .empty {
+    border: 1px dashed var(--line); border-radius: 12px; padding: 22px; text-align: center;
+    color: var(--muted); margin: 0;
+  }
+  .thumb { width: 100%; max-height: 280px; object-fit: contain; border-radius: 8px; background: var(--bg); display: block; }
+  .url {
+    font: 14px/1.4 ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    overflow-wrap: anywhere; user-select: all;
+  }
+  #qr { background: #fff; padding: 14px; border-radius: 12px; width: fit-content; max-width: 100%; }
+  #qr img, #qr canvas { display: block; max-width: 100%; height: auto; }
+  .note { font-size: 13px; color: var(--muted); margin: 0; text-align: center; }
+  .warn { color: var(--danger); font-size: 13px; margin: 0; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div class="eyebrow">Espace artiste</div>
+    <h1>Préparer l'<em>exposition</em></h1>
+    <p class="lead">Ajoutez vos photos et leur histoire, testez-les avec la caméra, puis mettez l'exposition en ligne pour les visiteurs.</p>
+  </header>
+
+  <section class="card" id="sec-expo">
+    <h2>L'exposition</h2>
+    <label for="expo-titre">Nom de l'exposition
+      <input type="text" id="expo-titre" placeholder="Par exemple : Les marées d'hiver">
+    </label>
+    <label for="expo-artiste">Nom de l'artiste
+      <input type="text" id="expo-artiste" placeholder="Votre nom">
+    </label>
+  </section>
+
+  <section class="card" id="sec-works">
+    <div class="row between">
+      <h2>Les œuvres</h2>
+      <span class="hint" id="works-count"></span>
+    </div>
+    <p class="empty" id="works-empty">Aucune œuvre pour l'instant. Commencez par en ajouter une.</p>
+    <ul class="works" id="works-list"></ul>
+    <div class="row">
+      <button class="main" id="add">Ajouter une œuvre</button>
+      <button id="test-all" disabled>Tester toutes les œuvres</button>
+    </div>
+    <div class="progress" id="test-progress" hidden><i></i></div>
+    <p class="status" id="test-status"></p>
+  </section>
+
+  <section class="card" id="sec-editor" hidden>
+    <h2 id="editor-title">Nouvelle œuvre</h2>
+    <label class="file" for="e-photo">
+      <input type="file" id="e-photo" accept="image/*">
+      <strong>Photo</strong>
+      <span class="name" id="e-photo-name">Choisir la photo exposée</span>
+    </label>
+    <img id="e-thumb" class="thumb" alt="Aperçu de la photo" hidden>
+    <p class="hint">Utilisez le même fichier que le tirage exposé. Les photos riches en détails sont mieux reconnues que les grands aplats (ciel uni, brouillard).</p>
+    <label for="e-titre">Titre
+      <input type="text" id="e-titre" placeholder="Titre de la photo">
+    </label>
+    <label for="e-meta">Lieu et date
+      <input type="text" id="e-meta" placeholder="Par exemple : Baie de Somme · janvier 2025">
+    </label>
+    <label for="e-texte">Texte affiché aux visiteurs
+      <textarea id="e-texte" placeholder="L'histoire de la prise de vue, ce que vous vouliez montrer…"></textarea>
+    </label>
+    <div class="checks">
+      <span class="hint">Effets</span>
+      <label class="check" for="e-cadre"><input type="checkbox" id="e-cadre"> Cadre de lumière qui se dessine</label>
+      <label class="check" for="e-poussiere"><input type="checkbox" id="e-poussiere"> Poussière dorée qui s'échappe de la photo</label>
+      <label class="check" for="e-cartel"><input type="checkbox" id="e-cartel"> Cartel d'information sous la photo</label>
+    </div>
+    <label class="file" for="e-video">
+      <input type="file" id="e-video" accept="video/*">
+      <strong>Vidéo (facultatif)</strong>
+      <span class="name" id="e-video-name">Elle se pose sur la photo pour la faire vivre</span>
+    </label>
+    <button class="small ghost" id="e-video-remove" hidden>Retirer la vidéo</button>
+    <label class="file" for="e-son">
+      <input type="file" id="e-son" accept="audio/*">
+      <strong>Son (facultatif)</strong>
+      <span class="name" id="e-son-name">Votre voix, une ambiance sonore</span>
+    </label>
+    <button class="small ghost" id="e-son-remove" hidden>Retirer le son</button>
+    <p class="warn" id="e-warn" hidden></p>
+    <div class="row">
+      <button class="main" id="e-save">Enregistrer l'œuvre</button>
+      <button class="ghost" id="e-cancel">Annuler</button>
+    </div>
+    <p class="status" id="e-status"></p>
+  </section>
+
+  <section class="card" id="sec-publish">
+    <h2>Mettre en ligne</h2>
+    <ol class="steps">
+      <li>
+        <strong>Préparer le dossier de l'exposition</strong>
+        <p>Le site apprend à reconnaître chaque photo et rassemble tout dans un fichier « exposition.zip ».</p>
+        <button class="main" id="pack" disabled>Préparer le dossier</button>
+        <div class="progress" id="pack-progress" hidden style="margin-top:10px"><i></i></div>
+        <p class="status" id="pack-status" style="margin-top:8px"></p>
+      </li>
+      <li>
+        <strong>Le déposer sur GitHub</strong>
+        <p>Décompressez « exposition.zip » : vous obtenez un dossier « expo ». Ouvrez la page de dépôt, glissez-y ce dossier, puis cliquez sur le bouton vert « Commit changes ».</p>
+        <a class="btn" id="upload-link" href="#" target="_blank" rel="noopener">Ouvrir la page de dépôt GitHub</a>
+        <p id="upload-fallback" hidden>Ouvrez votre projet sur GitHub, puis « Add file » et « Upload files ».</p>
+      </li>
+      <li>
+        <strong>Vérifier</strong>
+        <p>Après 1 à 2 minutes, ouvrez le lien des visiteurs ci-dessous : votre exposition y apparaît.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="card" id="sec-visitors">
+    <h2>Le lien des visiteurs</h2>
+    <p class="hint">Imprimez ce QR code à l'entrée de l'exposition ou à côté des photos.</p>
+    <div class="url" id="visitor-url"></div>
+    <div class="row">
+      <button class="small" id="copy">Copier le lien</button>
+      <a class="btn small" id="open-visitor" href="../" target="_blank" rel="noopener" style="padding:8px 12px;font-size:14px;border-radius:10px">Ouvrir</a>
+      <button class="small" id="qr-download">Télécharger le QR code</button>
+    </div>
+    <div id="qr" aria-label="QR code du lien visiteurs"></div>
+  </section>
+
+  <section class="card" id="sec-import">
+    <h2>Reprendre l'exposition en ligne</h2>
+    <p class="hint">Pour continuer sur un autre ordinateur ou téléphone : récupère les œuvres déjà en ligne pour les modifier ici.</p>
+    <div class="row"><button id="import">Récupérer les œuvres en ligne</button></div>
+    <p class="status" id="import-status"></p>
+  </section>
+
+  <p class="note">Vos œuvres sont enregistrées dans ce navigateur, sur cet appareil. Les visiteurs ne les voient qu'une fois mises en ligne.</p>
+</main>
+
+<div id="ar" hidden>
+  <div id="ar-stage"></div>
+  <div class="ar-bar top">
+    <button id="quit">Retour</button>
+    <span class="ar-tip" id="ar-tip">Visez la photo</span>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+    "mindar-image": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  }
+}
+</script>
+<script type="module">
+import { startAR, compileTargets, blobToCanvas, silentWavUrl } from "../shared/ar.js";
+
+const $ = (id) => document.getElementById(id);
+const MAX_UPLOAD = 25 * 1024 * 1024; // limite GitHub pour un fichier déposé par glisser-déposer
+const mb = (n) => (n / 1024 / 1024).toFixed(1).replace(".", ",") + " Mo";
+
+// ---------- Stockage dans le navigateur (IndexedDB) ----------
+const store = (() => {
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open("photo-augmentee", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv");
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }));
+  const run = async (mode, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const t = db.transaction("kv", mode);
+      const req = fn(t.objectStore("kv"));
+      t.oncomplete = () => res(req ? req.result : undefined);
+      t.onerror = () => rej(t.error);
+    });
+  };
+  return {
+    get: (k) => run("readonly", (s) => s.get(k)).catch(() => null),
+    set: (k, v) => run("readwrite", (s) => s.put(v, k)).catch((e) => console.warn("Sauvegarde impossible", e)),
+  };
+})();
+
+let expo = (await store.get("expo")) || { titre: "", artiste: "", oeuvres: [] };
+const save = () => store.set("expo", expo);
+const newId = () => "o" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+// ---------- Exposition ----------
+$("expo-titre").value = expo.titre || "";
+$("expo-artiste").value = expo.artiste || "";
+let saveTimer = null;
+for (const [id, key] of [["expo-titre", "titre"], ["expo-artiste", "artiste"]]) {
+  $(id).addEventListener("input", () => {
+    expo[key] = $(id).value;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 400);
+  });
+}
+
+// ---------- Liste des œuvres ----------
+const thumbs = new Map();
+function thumbUrl(w) {
+  const c = thumbs.get(w.id);
+  if (c && c.blob === w.photo) return c.url;
+  if (c) URL.revokeObjectURL(c.url);
+  const url = URL.createObjectURL(w.photo);
+  thumbs.set(w.id, { blob: w.photo, url });
+  return url;
+}
+
+function el(tag, attrs = {}, text) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function render() {
+  const list = $("works-list");
+  list.innerHTML = "";
+  const n = expo.oeuvres.length;
+  $("works-empty").hidden = n > 0;
+  $("works-count").textContent = n ? n + (n > 1 ? " œuvres" : " œuvre") : "";
+  $("test-all").disabled = n === 0;
+  $("pack").disabled = n === 0;
+  expo.oeuvres.forEach((w, i) => {
+    const li = el("li", { class: "work" });
+    const img = el("img", { src: thumbUrl(w), alt: "" });
+    const info = el("div", { class: "info" });
+    info.append(el("strong", {}, w.titre || "Sans titre"));
+    if (w.meta) info.append(el("span", { class: "meta" }, w.meta));
+    const tags = el("div", { class: "tags" });
+    if (w.video) tags.append(el("span", { class: "tag" }, "Vidéo"));
+    if (w.son) tags.append(el("span", { class: "tag" }, "Son"));
+    if (tags.children.length) info.append(tags);
+    const actions = el("div", { class: "actions" });
+    const bTest = el("button", { class: "small" }, "Tester");
+    const bEdit = el("button", { class: "small" }, "Modifier");
+    const bDel = el("button", { class: "small ghost danger" }, "Supprimer");
+    bTest.addEventListener("click", () => runTest([w]));
+    bEdit.addEventListener("click", () => openEditor(w));
+    bDel.addEventListener("click", async () => {
+      if (!confirm(`Supprimer « ${w.titre || "Sans titre"} » ?`)) return;
+      expo.oeuvres.splice(i, 1);
+      await save();
+      render();
+    });
+    actions.append(bTest, bEdit, bDel);
+    li.append(img, info, actions);
+    list.append(li);
+  });
+}
+
+// ---------- Éditeur d'œuvre ----------
+let draft = null;
+const mainSections = ["sec-expo", "sec-works", "sec-publish", "sec-visitors", "sec-import"];
+
+function showEditor(on) {
+  for (const id of mainSections) $(id).hidden = on;
+  $("sec-editor").hidden = !on;
+  window.scrollTo({ top: 0 });
+}
+
+function refreshEditorFiles() {
+  $("e-photo-name").textContent = draft.photo ? "Photo choisie (touchez pour changer)" : "Choisir la photo exposée";
+  if (draft.photo) { $("e-thumb").src = URL.createObjectURL(draft.photo); $("e-thumb").hidden = false; }
+  else $("e-thumb").hidden = true;
+  $("e-video-name").textContent = draft.video ? `${draft.videoNom || "Vidéo"} · ${mb(draft.video.size)}` : "Elle se pose sur la photo pour la faire vivre";
+  $("e-son-name").textContent = draft.son ? `${draft.sonNom || "Son"} · ${mb(draft.son.size)}` : "Votre voix, une ambiance sonore";
+  $("e-video-remove").hidden = !draft.video;
+  $("e-son-remove").hidden = !draft.son;
+  const big = [draft.video, draft.son].filter((b) => b && b.size > MAX_UPLOAD);
+  $("e-warn").hidden = big.length === 0;
+  $("e-warn").textContent = big.length ? `Fichier trop lourd pour la mise en ligne (plus de 25 Mo). Compressez-le ou raccourcissez-le avant de l'ajouter.` : "";
+}
+
+function openEditor(w) {
+  draft = w
+    ? { ...w, effets: { ...w.effets } }
+    : { id: newId(), titre: "", meta: "", texte: "", effets: { cadre: true, poussiere: true, cartel: true }, photo: null, ratio: 1, video: null, videoNom: "", son: null, sonNom: "" };
+  $("editor-title").textContent = w ? "Modifier l'œuvre" : "Nouvelle œuvre";
+  $("e-titre").value = draft.titre;
+  $("e-meta").value = draft.meta;
+  $("e-texte").value = draft.texte;
+  $("e-cadre").checked = draft.effets.cadre !== false;
+  $("e-poussiere").checked = draft.effets.poussiere !== false;
+  $("e-cartel").checked = draft.effets.cartel !== false;
+  for (const id of ["e-photo", "e-video", "e-son"]) $(id).value = "";
+  $("e-status").textContent = "";
+  $("e-status").classList.remove("error");
+  refreshEditorFiles();
+  showEditor(true);
+}
+
+$("add").addEventListener("click", () => openEditor(null));
+$("e-cancel").addEventListener("click", () => { draft = null; showEditor(false); });
+
+$("e-photo").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  $("e-save").disabled = true;
+  $("e-status").classList.remove("error");
+  $("e-status").textContent = "Chargement de la photo…";
+  try {
+    const c = await blobToCanvas(file, 1000);
+    draft.photo = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.88));
+    draft.ratio = c.height / c.width;
+    $("e-status").textContent = "";
+    refreshEditorFiles();
+  } catch {
+    $("e-status").classList.add("error");
+    $("e-status").textContent = "Cette image n'a pas pu être lue. Essayez un fichier JPEG ou PNG.";
+  } finally {
+    $("e-save").disabled = false;
+  }
+});
+$("e-video").addEventListener("change", (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  draft.video = f; draft.videoNom = f.name; refreshEditorFiles();
+});
+$("e-son").addEventListener("change", (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  draft.son = f; draft.sonNom = f.name; refreshEditorFiles();
+});
+$("e-video-remove").addEventListener("click", () => { draft.video = null; draft.videoNom = ""; $("e-video").value = ""; refreshEditorFiles(); });
+$("e-son-remove").addEventListener("click", () => { draft.son = null; draft.sonNom = ""; $("e-son").value = ""; refreshEditorFiles(); });
+
+$("e-save").addEventListener("click", async () => {
+  if (!draft.photo) {
+    $("e-status").classList.add("error");
+    $("e-status").textContent = "Ajoutez la photo de l'œuvre avant d'enregistrer.";
+    return;
+  }
+  draft.titre = $("e-titre").value.trim();
+  draft.meta = $("e-meta").value.trim();
+  draft.texte = $("e-texte").value.trim();
+  draft.effets = { cadre: $("e-cadre").checked, poussiere: $("e-poussiere").checked, cartel: $("e-cartel").checked };
+  const i = expo.oeuvres.findIndex((o) => o.id === draft.id);
+  if (i >= 0) expo.oeuvres[i] = draft; else expo.oeuvres.push(draft);
+  await save();
+  draft = null;
+  showEditor(false);
+  render();
+});
+
+// ---------- Test avec la caméra ----------
+const audio = new Audio();
+let session = null, testUrls = [];
+
+function setProgress(id, p) {
+  const bar = $(id);
+  bar.hidden = p === null;
+  if (p !== null) bar.firstElementChild.style.width = p + "%";
+}
+
+async function runTest(works) {
+  // Débloque le son pendant le geste (iPhone), avant la préparation qui prend quelques secondes.
+  audio.src = silentWavUrl(); audio.dataset.src = "";
+  audio.play().then(() => audio.pause()).catch(() => {});
+  const status = $("test-status");
+  status.classList.remove("error");
+  $("test-all").disabled = true;
+  try {
+    status.textContent = "Préparation du test…";
+    setProgress("test-progress", 0);
+    const canvases = [];
+    for (const w of works) canvases.push(await blobToCanvas(w.photo, 1000));
+    const data = await compileTargets(canvases, (p) => {
+      setProgress("test-progress", p);
+      status.textContent = `Préparation du test… ${Math.round(p)} %`;
+    });
+    const target = URL.createObjectURL(new Blob([data]));
+    testUrls = [target];
+    const arWorks = works.map((w) => {
+      const v = w.video ? URL.createObjectURL(w.video) : null;
+      const s = w.son ? URL.createObjectURL(w.son) : null;
+      testUrls.push(v, s);
+      return { titre: w.titre, meta: w.meta, texte: w.texte, ratio: w.ratio, effets: w.effets, video: v, son: s };
+    });
+    $("ar").hidden = false;
+    $("ar-tip").textContent = works.length > 1 ? "Visez une des photos" : "Visez la photo";
+    session = await startAR({
+      container: $("ar-stage"), targetSrc: target, works: arWorks, audioEl: audio,
+      onFound: (w) => { $("ar-tip").textContent = w.titre || "Photo reconnue"; },
+      onLost: () => { $("ar-tip").textContent = works.length > 1 ? "Visez une des photos" : "Visez la photo"; },
+    });
+    status.textContent = "";
+  } catch (e) {
+    console.error(e);
+    $("ar").hidden = true;
+    status.classList.add("error");
+    status.textContent = e && e.message === "camera"
+      ? "La caméra n'a pas pu s'ouvrir. Autorisez l'accès à la caméra pour ce site, puis réessayez."
+      : "Le test n'a pas pu être préparé. Rechargez la page et réessayez.";
+  } finally {
+    setProgress("test-progress", null);
+    $("test-all").disabled = expo.oeuvres.length === 0;
+  }
+}
+
+$("test-all").addEventListener("click", () => runTest(expo.oeuvres));
+$("quit").addEventListener("click", () => {
+  if (session) { session.stop(); session = null; }
+  testUrls.forEach((u) => u && URL.revokeObjectURL(u));
+  testUrls = [];
+  $("ar").hidden = true;
+});
+
+// ---------- Préparer le dossier à mettre en ligne ----------
+function ext(name, blob, fallback) {
+  const m = /\.([a-z0-9]{2,5})$/i.exec(name || "");
+  if (m) return m[1].toLowerCase();
+  const t = (blob && blob.type) || "";
+  return t.split("/")[1]?.replace("mpeg", "mp3").replace("quicktime", "mov") || fallback;
+}
+
+$("pack").addEventListener("click", async () => {
+  const status = $("pack-status");
+  status.classList.remove("error");
+  const big = expo.oeuvres.filter((w) => (w.video && w.video.size > MAX_UPLOAD) || (w.son && w.son.size > MAX_UPLOAD));
+  if (big.length) {
+    status.classList.add("error");
+    status.textContent = `Fichier trop lourd (plus de 25 Mo) dans : ${big.map((w) => w.titre || "Sans titre").join(", ")}. Remplacez-le par une version plus légère.`;
+    return;
+  }
+  $("pack").disabled = true;
+  try {
+    setProgress("pack-progress", 0);
+    status.textContent = "Analyse des photos… 0 %";
+    const canvases = [];
+    for (const w of expo.oeuvres) canvases.push(await blobToCanvas(w.photo, 1000));
+    const data = await compileTargets(canvases, (p) => {
+      setProgress("pack-progress", p * 0.9);
+      status.textContent = `Analyse des photos… ${Math.round(p)} %`;
+    });
+    status.textContent = "Création du fichier…";
+    const maj = Date.now();
+    const zip = new JSZip();
+    const dir = zip.folder("expo");
+    dir.file("cibles.mind", data);
+    const oeuvres = [];
+    expo.oeuvres.forEach((w, i) => {
+      const n = "oeuvre-" + (i + 1);
+      const photo = `photos/${n}.jpg`;
+      dir.file(photo, w.photo);
+      let video = null, son = null;
+      if (w.video) { video = `medias/${n}-video.${ext(w.videoNom, w.video, "mp4")}`; dir.file(video, w.video); }
+      if (w.son) { son = `medias/${n}-son.${ext(w.sonNom, w.son, "mp3")}`; dir.file(son, w.son); }
+      const q = "?v=" + maj;
+      oeuvres.push({
+        titre: w.titre, meta: w.meta, texte: w.texte, ratio: w.ratio, effets: w.effets,
+        photo: photo + q, video: video && video + q, son: son && son + q,
+      });
+    });
+    dir.file("exposition.json", JSON.stringify({ version: 1, maj, titre: expo.titre, artiste: expo.artiste, oeuvres }, null, 2));
+    const blob = await zip.generateAsync({ type: "blob" }, (m) => setProgress("pack-progress", 90 + m.percent / 10));
+    const a = el("a", { href: URL.createObjectURL(blob), download: "exposition.zip" });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    status.textContent = `« exposition.zip » est téléchargé (${mb(blob.size)}). Passez à l'étape 2.`;
+  } catch (e) {
+    console.error(e);
+    status.classList.add("error");
+    status.textContent = "La préparation a échoué. Rechargez la page et réessayez.";
+  } finally {
+    setProgress("pack-progress", null);
+    $("pack").disabled = expo.oeuvres.length === 0;
+  }
+});
+
+// Lien vers la page de dépôt du projet GitHub (déduit de l'adresse du site).
+(() => {
+  const host = location.hostname;
+  const seg = location.pathname.split("/").filter(Boolean);
+  if (host.endsWith(".github.io") && seg.length >= 2) {
+    $("upload-link").href = `https://github.com/${host.replace(".github.io", "")}/${seg[0]}/upload/main`;
+  } else {
+    $("upload-link").hidden = true;
+    $("upload-fallback").hidden = false;
+  }
+})();
+
+// ---------- Lien et QR code des visiteurs ----------
+const visitorUrl = new URL("../", location.href).href;
+$("visitor-url").textContent = visitorUrl;
+$("open-visitor").href = visitorUrl;
+try {
+  new QRCode($("qr"), { text: visitorUrl, width: 240, height: 240, colorDark: "#15171a", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+} catch { $("qr").hidden = true; $("qr-download").hidden = true; }
+
+$("copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(visitorUrl); $("copy").textContent = "Lien copié"; }
+  catch {
+    const r = document.createRange(); r.selectNodeContents($("visitor-url"));
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    $("copy").textContent = "Lien sélectionné";
+  }
+  setTimeout(() => { $("copy").textContent = "Copier le lien"; }, 2000);
+});
+
+$("qr-download").addEventListener("click", () => {
+  const src = $("qr").querySelector("canvas");
+  if (!src) return;
+  const m = 40, c = document.createElement("canvas");
+  c.width = src.width + m * 2; c.height = src.height + m * 2;
+  const g = c.getContext("2d");
+  g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(src, m, m);
+  const a = el("a", { href: c.toDataURL("image/png"), download: "qr-code-visiteurs.png" });
+  document.body.append(a); a.click(); a.remove();
+});
+
+// ---------- Reprendre l'exposition en ligne ----------
+$("import").addEventListener("click", async () => {
+  const status = $("import-status");
+  status.classList.remove("error");
+  const base = new URL("../expo/", location.href);
+  try {
+    status.textContent = "Recherche de l'exposition en ligne…";
+    const r = await fetch(new URL("exposition.json", base), { cache: "no-store" });
+    if (!r.ok) throw new Error("absent");
+    const online = await r.json();
+    if (!online.oeuvres || !online.oeuvres.length) throw new Error("absent");
+    if (expo.oeuvres.length && !confirm("Remplacer les œuvres de cet appareil par celles qui sont en ligne ?")) { status.textContent = ""; return; }
+    const get = async (p) => (p ? (await fetch(new URL(p, base))).blob() : null);
+    const name = (p) => (p ? p.split("?")[0].split("/").pop() : "");
+    const oeuvres = [];
+    for (let i = 0; i < online.oeuvres.length; i++) {
+      const o = online.oeuvres[i];
+      status.textContent = `Récupération de l'œuvre ${i + 1} sur ${online.oeuvres.length}…`;
+      oeuvres.push({
+        id: newId(), titre: o.titre || "", meta: o.meta || "", texte: o.texte || "",
+        effets: o.effets || { cadre: true, poussiere: true, cartel: true }, ratio: o.ratio || 1,
+        photo: await get(o.photo), video: await get(o.video), videoNom: name(o.video),
+        son: await get(o.son), sonNom: name(o.son),
+      });
+    }
+    expo = { titre: online.titre || "", artiste: online.artiste || "", oeuvres };
+    $("expo-titre").value = expo.titre;
+    $("expo-artiste").value = expo.artiste;
+    await save();
+    render();
+    status.textContent = `${oeuvres.length} œuvre(s) récupérée(s).`;
+  } catch (e) {
+    status.classList.add("error");
+    status.textContent = e.message === "absent"
+      ? "Aucune exposition n'est encore en ligne."
+      : "La récupération a échoué. Vérifiez la connexion et réessayez.";
+  }
+});
+
+render();
+</script>
+</body>
+</html>

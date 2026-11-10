@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Visite augmentée</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="shared/style.css">
+<style>
+  .welcome { min-height: 100%; display: grid; align-content: center; gap: 26px; padding-block: 40px 48px; }
+  .artist { font-family: var(--font-display); font-style: italic; font-size: 24px; color: var(--muted); margin: 0; }
+  .tips { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .tips li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; color: var(--muted); font-size: 15px; }
+  .tips svg { width: 34px; height: 34px; stroke: var(--accent); fill: none; stroke-width: 1.6; }
+  .count { font-size: 13px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<main class="wrap welcome" id="welcome">
+  <header>
+    <div class="eyebrow">Visite augmentée</div>
+    <h1 id="expo-title">Chargement…</h1>
+    <p class="artist" id="expo-artist"></p>
+  </header>
+
+  <div id="ready" hidden>
+    <ul class="tips">
+      <li>
+        <svg viewBox="0 0 34 34" aria-hidden="true"><rect x="9" y="3" width="16" height="28" rx="3"/><circle cx="17" cy="26" r="1.2"/></svg>
+        <span>Ouvrez la caméra, puis visez une photo de l'exposition en la gardant entière dans l'écran.</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 34 34" aria-hidden="true"><rect x="4" y="8" width="26" height="18" rx="1"/><path d="M8 22l6-7 5 5 3-3 5 5"/></svg>
+        <span>La photo se révèle : son histoire, et parfois une vidéo ou la voix de l'artiste.</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 34 34" aria-hidden="true"><path d="M6 13h5l7-6v20l-7-6H6z"/><path d="M23 12a7 7 0 010 10M26 9a11 11 0 010 16"/></svg>
+        <span>Montez le son de votre téléphone pour ne rien manquer.</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="row" style="display:grid; gap:12px">
+    <button class="main wide" id="start" disabled>Commencer la visite</button>
+    <p class="status" id="status"></p>
+    <span class="count" id="count"></span>
+  </div>
+</main>
+
+<div id="ar" hidden>
+  <div id="ar-stage"></div>
+  <div class="ar-bar top">
+    <button id="quit">Quitter</button>
+    <span class="ar-tip" id="ar-tip">Visez une photo</span>
+  </div>
+  <div class="ar-bar bottom">
+    <button id="sound" hidden>Couper le son</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+    "mindar-image": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  }
+}
+</script>
+<script type="module">
+import { startAR, silentWavUrl } from "./shared/ar.js";
+
+const $ = (id) => document.getElementById(id);
+const base = new URL("expo/", location.href);
+let expo = null;
+try {
+  const r = await fetch(new URL("exposition.json", base), { cache: "no-store" });
+  if (r.ok) expo = await r.json();
+} catch {}
+
+if (!expo || !Array.isArray(expo.oeuvres) || expo.oeuvres.length === 0) {
+  $("expo-title").textContent = "L'exposition arrive bientôt";
+  $("status").textContent = "Aucune œuvre n'est encore en ligne. Si vous êtes l'artiste, préparez vos œuvres dans l'espace artiste.";
+} else {
+  document.title = expo.titre || "Visite augmentée";
+  $("expo-title").textContent = expo.titre || "Visite augmentée";
+  $("expo-artist").textContent = expo.artiste || "";
+  $("count").textContent = expo.oeuvres.length + (expo.oeuvres.length > 1 ? " photos à découvrir" : " photo à découvrir");
+  $("ready").hidden = false;
+  $("start").disabled = false;
+}
+
+const works = (expo?.oeuvres || []).map((o) => ({
+  titre: o.titre, meta: o.meta, texte: o.texte, ratio: o.ratio, effets: o.effets,
+  video: o.video ? new URL(o.video, base).href : null,
+  son: o.son ? new URL(o.son, base).href : null,
+}));
+
+const audio = new Audio();
+let session = null;
+
+$("start").addEventListener("click", async () => {
+  $("start").disabled = true;
+  $("status").classList.remove("error");
+  $("status").textContent = "Ouverture de la caméra…";
+  // Débloque le son pendant le geste du visiteur (exigence des iPhone).
+  audio.src = silentWavUrl(); audio.dataset.src = "";
+  audio.play().then(() => audio.pause()).catch(() => {});
+  $("welcome").hidden = true;
+  $("ar").hidden = false;
+  try {
+    session = await startAR({
+      container: $("ar-stage"),
+      targetSrc: new URL("cibles.mind?v=" + (expo.maj || ""), base).href,
+      works, audioEl: audio,
+      onFound: (w) => {
+        $("ar-tip").innerHTML = "";
+        const s = document.createElement("strong"); s.textContent = w.titre || "Photo reconnue";
+        $("ar-tip").append(s);
+        $("sound").hidden = !w.son;
+        $("sound").textContent = audio.muted ? "Activer le son" : "Couper le son";
+      },
+      onLost: () => { $("ar-tip").textContent = "Visez une photo"; $("sound").hidden = true; },
+    });
+    $("status").textContent = "";
+  } catch (e) {
+    console.error(e);
+    $("ar").hidden = true;
+    $("welcome").hidden = false;
+    $("status").classList.add("error");
+    $("status").textContent = "La caméra n'a pas pu s'ouvrir. Autorisez l'accès à la caméra pour ce site dans les réglages du navigateur, puis réessayez.";
+  } finally {
+    $("start").disabled = false;
+  }
+});
+
+$("sound").addEventListener("click", () => {
+  audio.muted = !audio.muted;
+  $("sound").textContent = audio.muted ? "Activer le son" : "Couper le son";
+});
+
+$("quit").addEventListener("click", () => {
+  if (session) { session.stop(); session = null; }
+  $("ar").hidden = true;
+  $("welcome").hidden = false;
+  $("ar-tip").textContent = "Visez une photo";
+  $("sound").hidden = true;
+});
+</script>
+</body>
+</html>
